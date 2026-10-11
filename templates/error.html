@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Error {{ code }} — SyncAcademia{% endblock %}
+
+{% block content %}
+<div class="min-h-[60vh] flex items-center justify-center py-10">
+  <div class="w-full max-w-md bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl p-6 sm:p-8 shadow-xl text-center space-y-4">
+    <div class="w-16 h-16 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-300 mx-auto flex items-center justify-center">
+      <span class="material-symbols-outlined text-[36px]">
+        {% if code == 403 %}lock{% elif code == 404 %}explore_off{% else %}error{% endif %}
+      </span>
+    </div>
+
+    <div>
+      <h1 class="text-3xl font-headline font-bold text-on-surface">{{ code }}</h1>
+      <h2 class="text-lg font-headline font-semibold text-on-surface mt-1">{{ title }}</h2>
+      <p class="text-xs sm:text-sm text-on-surface-variant mt-2 leading-relaxed">
+        {{ message }}
+      </p>
+    </div>
+
+    <div class="pt-3">
+      <a href="{{ url_for('index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold shadow-md hover:bg-primary-container transition-all">
+        <span class="material-symbols-outlined text-[16px]">home</span>
+        <span>Back to Home</span>
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

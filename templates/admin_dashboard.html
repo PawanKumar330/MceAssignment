@@ -1,0 +1,669 @@
+{% extends "base.html" %}
+
+{% block title %}Master Admin — Faculty & Sheets Config{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Admin Sub-Navigation / Header Section -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-outline-variant/30">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-2xl font-headline font-bold text-on-surface">Faculty &amp; Sheets Access</h1>
+        <span class="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary dark:bg-blue-900/40 dark:text-blue-300 text-xs font-bold font-headline">
+          {{ stats.total }} Mappings
+        </span>
+      </div>
+      <p class="text-xs sm:text-sm text-on-surface-variant mt-0.5">
+        Manage faculty logins, assign subjects, and verify Google Sheets integration.
+      </p>
+    </div>
+
+    <!-- Actions & Switch View -->
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('admin_overview') }}" class="h-10 px-4 rounded-xl bg-surface-container-low hover:bg-surface-container text-primary dark:text-blue-300 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-sm">
+        <span class="material-symbols-outlined text-[18px]">query_stats</span>
+        <span>Subject Overview</span>
+      </a>
+      <button onclick="openAddFacultyModal()" class="h-10 px-4 rounded-xl bg-primary hover:bg-primary-container text-white text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-all shadow-md active:scale-95">
+        <span class="material-symbols-outlined text-[18px]">person_add</span>
+        <span>Add Faculty</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Service Account Active Status Banner -->
+  <div class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <span class="relative flex h-3 w-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full {% if is_sheets_configured %}bg-green-400{% else %}bg-amber-400{% endif %} opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 {% if is_sheets_configured %}bg-green-600{% else %}bg-amber-600{% endif %}"></span>
+        </span>
+        <span class="text-xs font-bold uppercase tracking-wider {% if is_sheets_configured %}text-green-700 dark:text-green-400{% else %}text-amber-700 dark:text-amber-400{% endif %}">
+          {% if is_sheets_configured %}Google Service Account Active{% else %}Service Account Pending Configuration{% endif %}
+        </span>
+      </div>
+
+      <div class="text-xs text-on-surface-variant">
+        Must be shared as <strong>Editor</strong> on all target faculty sheets
+      </div>
+    </div>
+
+    <!-- Email Copy Strip -->
+    <div class="bg-surface-container-low dark:bg-slate-800/80 px-3.5 py-2.5 rounded-xl flex items-center justify-between gap-3 border border-outline-variant/20">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">mail</span>
+        <span id="sa-email-text" class="text-xs font-mono font-medium text-on-surface truncate select-all">
+          {{ service_account_email }}
+        </span>
+      </div>
+      <button 
+        onclick="copyServiceAccountEmail()" 
+        id="copy-sa-btn"
+        class="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg bg-surface-container-lowest dark:bg-slate-700 text-on-surface hover:text-primary transition-colors flex items-center gap-1 shadow-sm"
+      >
+        <span class="material-symbols-outlined text-[15px]">content_copy</span>
+        <span>Copy Email</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Metric Badges Strip -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-xl p-3.5 flex flex-col">
+      <span class="text-xs text-on-surface-variant font-medium">Total Faculty</span>
+      <span class="text-2xl font-headline font-bold text-on-surface mt-1">{{ stats.total }}</span>
+    </div>
+    <div class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-xl p-3.5 flex flex-col">
+      <span class="text-xs text-green-600 dark:text-green-400 font-medium">Active Accounts</span>
+      <span class="text-2xl font-headline font-bold text-green-700 dark:text-green-400 mt-1">{{ stats.active }}</span>
+    </div>
+    <div class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-xl p-3.5 flex flex-col">
+      <span class="text-xs text-amber-600 dark:text-amber-400 font-medium">Inactive Accounts</span>
+      <span class="text-2xl font-headline font-bold text-amber-700 dark:text-amber-400 mt-1">{{ stats.inactive }}</span>
+    </div>
+    <div class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-xl p-3.5 flex flex-col">
+      <span class="text-xs text-secondary font-medium">Assigned Subjects</span>
+      <span class="text-2xl font-headline font-bold text-secondary mt-1">{{ stats.subjects }}</span>
+    </div>
+  </div>
+
+  <!-- Search & Filter Controls -->
+  <div class="flex items-center gap-3">
+    <div class="relative flex-1">
+      <span class="material-symbols-outlined absolute left-3.5 top-2.5 text-outline text-[20px]">search</span>
+      <input 
+        type="search" 
+        id="search-faculty-input" 
+        placeholder="Filter by faculty name, username, or subject..." 
+        class="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-lowest dark:bg-slate-900 text-on-surface border border-outline-variant/30 text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-secondary/20"
+      />
+    </div>
+  </div>
+
+  <!-- Faculty Cards List -->
+  <div id="faculty-list-container" class="space-y-3">
+    {% if faculty_list %}
+      {% for f in faculty_list %}
+        <div class="faculty-card bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 transition-all" data-search="{{ f.name }} {{ f.username }} {{ f.subject }}">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-11 h-11 rounded-full bg-primary/10 text-primary dark:bg-blue-900/50 dark:text-blue-300 flex items-center justify-center font-headline font-bold text-base shrink-0">
+                {{ f.name[:2]|upper }}
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <h3 class="font-headline font-bold text-base text-on-surface truncate">{{ f.name }}</h3>
+                  <span class="text-xs font-mono text-on-surface-variant">@{{ f.username }}</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-on-surface-variant mt-0.5">
+                  <span class="font-semibold text-primary dark:text-blue-400">{{ f.subject }}</span>
+                  <span>•</span>
+                  <span>Tab: <code class="font-mono bg-surface-container-low px-1.5 py-0.2 rounded">{{ f.worksheet_name or 'Sheet1' }}</code></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Status & Actions -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <!-- Active toggle pill -->
+              <button 
+                onclick="toggleFacultyStatus('{{ f.faculty_id }}', {{ 'false' if f.active else 'true' }})"
+                class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors {% if f.active %}bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300 hover:bg-green-200{% else %}bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-200{% endif %}"
+              >
+                <span class="w-2 h-2 rounded-full {% if f.active %}bg-green-500{% else %}bg-slate-400{% endif %}"></span>
+                <span>{{ 'Active' if f.active else 'Inactive' }}</span>
+              </button>
+
+              <!-- Test Connection Button -->
+              <button 
+                onclick="testSheetConnection('{{ f.sheet_id }}', '{{ f.worksheet_name or 'Sheet1' }}', this)" 
+                class="px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-secondary dark:text-blue-300 text-xs font-semibold flex items-center gap-1 transition-colors shadow-sm"
+                title="Test Google Sheets Read/Write"
+              >
+                <span class="material-symbols-outlined text-[16px]">cable</span>
+                <span>Test Sheet</span>
+              </button>
+
+              <!-- Edit Button -->
+              <button 
+                onclick="openEditFacultyModal({{ f|tojson|forceescape }})" 
+                class="p-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors"
+                title="Edit Details"
+              >
+                <span class="material-symbols-outlined text-[18px]">edit</span>
+              </button>
+
+              <!-- Reset Password Button -->
+              <button 
+                onclick="openResetPasswordModal('{{ f.faculty_id }}', '{{ f.name }}')" 
+                class="p-1.5 rounded-xl bg-surface-container-low hover:bg-amber-100 dark:hover:bg-amber-950/50 text-amber-600 transition-colors"
+                title="Reset Password"
+              >
+                <span class="material-symbols-outlined text-[18px]">key</span>
+              </button>
+
+              <!-- Delete Button -->
+              <button 
+                onclick="confirmDeleteFaculty('{{ f.faculty_id }}', '{{ f.name }}')" 
+                class="p-1.5 rounded-xl bg-surface-container-low hover:bg-red-100 dark:hover:bg-red-950/50 text-red-600 transition-colors"
+                title="Delete Faculty"
+              >
+                <span class="material-symbols-outlined text-[18px]">delete</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sheet URL and Activity Footer -->
+          <div class="pt-2 border-t border-outline-variant/20 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-on-surface-variant gap-2">
+            <div class="flex items-center gap-1.5 truncate">
+              <span class="material-symbols-outlined text-[15px] text-green-600">link</span>
+              <span class="truncate">Sheet ID: <span class="font-mono">{{ f.sheet_id or 'None' }}</span></span>
+              {% if f.sheet_id %}
+                <a href="https://docs.google.com/spreadsheets/d/{{ f.sheet_id }}" target="_blank" rel="noopener" class="text-secondary hover:underline ml-1">Open ↗</a>
+              {% endif %}
+            </div>
+            <div class="shrink-0 text-[11px]">
+              Last Activity: <span class="font-medium text-on-surface">{{ f.last_activity or 'Never' }}</span>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-center py-12 bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl p-6">
+        <span class="material-symbols-outlined text-[48px] text-outline mb-2">group_off</span>
+        <h3 class="text-lg font-headline font-bold text-on-surface">No Faculty Assigned Yet</h3>
+        <p class="text-xs sm:text-sm text-on-surface-variant max-w-sm mx-auto mt-1 mb-4">
+          Click the "Add Faculty" button above to create a faculty login and link their subject's Google Sheet.
+        </p>
+        <button onclick="openAddFacultyModal()" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-md">
+          Add First Faculty
+        </button>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+
+<!-- ========================================== -->
+<!-- MODAL: ADD FACULTY                         -->
+<!-- ========================================== -->
+<div id="add-faculty-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
+  <div class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-headline font-bold text-on-surface">Add New Faculty Mapping</h2>
+      <button onclick="closeModal('add-faculty-modal')" class="text-on-surface-variant hover:text-on-surface p-1">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <form id="add-faculty-form" onsubmit="submitAddFaculty(event)" class="space-y-3.5">
+      <div>
+        <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Faculty Full Name</label>
+        <input type="text" name="name" required placeholder="e.g. Dr. Robert Vance" class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/20"/>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Assigned Subject</label>
+        <input type="text" name="subject" required placeholder="e.g. CS301: Advanced Data Structures" class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/20"/>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Username</label>
+        <input type="text" name="username" required placeholder="e.g. rvance" class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/20"/>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-xs font-semibold text-on-surface-variant uppercase">Password</label>
+          <label class="flex items-center gap-1.5 text-xs text-secondary cursor-pointer">
+            <input type="checkbox" id="auto-gen-pw" name="auto_generate_password" value="true" checked onchange="togglePwInput(this)"/>
+            <span>Auto-generate strong password</span>
+          </label>
+        </div>
+        <input type="text" id="manual-pw-input" name="password" placeholder="Leave empty for auto-generation" class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/20 hidden"/>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Google Sheet URL or ID</label>
+        <input type="text" name="sheet_id" required placeholder="Paste full sheet URL or ID" class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/20"/>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Worksheet / Tab Name</label>
+        <input type="text" name="worksheet_name" value="Sheet1" placeholder="Sheet1" class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/20"/>
+      </div>
+
+      <div class="pt-3 flex items-center justify-end gap-2">
+        <button type="button" onclick="closeModal('add-faculty-modal')" class="px-4 py-2 rounded-xl bg-surface-container-low text-on-surface text-xs font-semibold">Cancel</button>
+        <button type="submit" id="add-faculty-btn" class="px-5 py-2 rounded-xl bg-primary hover:bg-primary-container text-white text-xs font-semibold shadow-md flex items-center gap-2">
+          <span>Create &amp; Link</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ========================================== -->
+<!-- MODAL: ONE-TIME PASSWORD DISPLAY           -->
+<!-- ========================================== -->
+<div id="password-display-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
+  <div class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 text-center">
+    <div class="w-12 h-12 rounded-2xl bg-green-100 text-green-700 dark:bg-green-950/60 dark:text-green-300 mx-auto flex items-center justify-center">
+      <span class="material-symbols-outlined text-[28px]">key</span>
+    </div>
+
+    <div>
+      <h2 class="text-lg font-headline font-bold text-on-surface">Faculty Account Created</h2>
+      <p class="text-xs text-amber-600 dark:text-amber-400 font-semibold mt-1">
+        Important: This password is shown only once! Copy and share it with the faculty member now.
+      </p>
+    </div>
+
+    <div class="bg-surface-container-low dark:bg-slate-800 p-4 rounded-xl border border-outline-variant/30 text-left space-y-2">
+      <div class="text-xs text-on-surface-variant">Username: <span id="display-username" class="font-bold text-on-surface font-mono"></span></div>
+      <div class="text-xs text-on-surface-variant flex items-center justify-between">
+        <span>Password:</span>
+        <button onclick="copyGeneratedPassword()" class="text-xs text-secondary hover:underline flex items-center gap-1">
+          <span class="material-symbols-outlined text-[14px]">content_copy</span> Copy
+        </button>
+      </div>
+      <div id="display-password" class="text-base font-mono font-bold text-primary dark:text-blue-300 bg-surface-container-lowest dark:bg-slate-900 p-2 rounded border border-outline-variant/20 select-all break-all"></div>
+    </div>
+
+    <button onclick="closePasswordModalAndReload()" class="w-full py-2.5 rounded-xl bg-primary text-white text-xs font-semibold shadow-md">
+      Done, I have saved it
+    </button>
+  </div>
+</div>
+
+
+<!-- ========================================== -->
+<!-- MODAL: EDIT FACULTY                        -->
+<!-- ========================================== -->
+<div id="edit-faculty-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
+  <div class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-headline font-bold text-on-surface">Edit Faculty Information</h2>
+      <button onclick="closeModal('edit-faculty-modal')" class="text-on-surface-variant hover:text-on-surface p-1">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <form id="edit-faculty-form" onsubmit="submitEditFaculty(event)" class="space-y-3.5">
+      <input type="hidden" name="faculty_id" id="edit-faculty-id"/>
+
+      <div>
+        <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Faculty Full Name</label>
+        <input type="text" name="name" id="edit-faculty-name" required class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none"/>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Assigned Subject</label>
+        <input type="text" name="subject" id="edit-faculty-subject" required class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none"/>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Username</label>
+        <input type="text" name="username" id="edit-faculty-username" required class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none"/>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Google Sheet URL or ID</label>
+        <input type="text" name="sheet_id" id="edit-faculty-sheet" required class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none"/>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Worksheet / Tab Name</label>
+        <input type="text" name="worksheet_name" id="edit-faculty-ws" required class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none"/>
+      </div>
+
+      <div class="pt-3 flex items-center justify-end gap-2">
+        <button type="button" onclick="closeModal('edit-faculty-modal')" class="px-4 py-2 rounded-xl bg-surface-container-low text-on-surface text-xs font-semibold">Cancel</button>
+        <button type="submit" id="edit-faculty-btn" class="px-5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-md">
+          Save Changes
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ========================================== -->
+<!-- MODAL: RESET PASSWORD                      -->
+<!-- ========================================== -->
+<div id="reset-pw-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
+  <div class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-headline font-bold text-on-surface">Reset Password</h2>
+      <button onclick="closeModal('reset-pw-modal')" class="text-on-surface-variant hover:text-on-surface p-1">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <p class="text-xs text-on-surface-variant" id="reset-pw-faculty-label"></p>
+
+    <form id="reset-pw-form" onsubmit="submitResetPassword(event)" class="space-y-3.5">
+      <input type="hidden" name="faculty_id" id="reset-faculty-id"/>
+
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-xs font-semibold text-on-surface-variant uppercase">New Password</label>
+          <label class="flex items-center gap-1.5 text-xs text-secondary cursor-pointer">
+            <input type="checkbox" id="reset-auto-gen" checked onchange="toggleResetPwInput(this)"/>
+            <span>Auto-generate</span>
+          </label>
+        </div>
+        <input type="text" id="reset-pw-input" name="new_password" placeholder="Leave empty for auto-generate" class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none hidden"/>
+      </div>
+
+      <div class="pt-3 flex items-center justify-end gap-2">
+        <button type="button" onclick="closeModal('reset-pw-modal')" class="px-4 py-2 rounded-xl bg-surface-container-low text-on-surface text-xs font-semibold">Cancel</button>
+        <button type="submit" id="reset-pw-submit-btn" class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-md">
+          Reset Password
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Copy Service Account Email
+  function copyServiceAccountEmail() {
+    const email = document.getElementById('sa-email-text').textContent.trim();
+    navigator.clipboard.writeText(email).then(() => {
+      showToast("Service Account email copied! Share with Editor access on your sheets.", "success");
+    });
+  }
+
+  // Modals management
+  function openAddFacultyModal() {
+    document.getElementById('add-faculty-form').reset();
+    document.getElementById('add-faculty-modal').classList.remove('hidden');
+    document.getElementById('add-faculty-modal').classList.add('flex');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
+    document.getElementById(id).classList.remove('flex');
+  }
+
+  function togglePwInput(checkbox) {
+    const input = document.getElementById('manual-pw-input');
+    if (checkbox.checked) {
+      input.classList.add('hidden');
+      input.value = '';
+    } else {
+      input.classList.remove('hidden');
+    }
+  }
+
+  function toggleResetPwInput(checkbox) {
+    const input = document.getElementById('reset-pw-input');
+    if (checkbox.checked) {
+      input.classList.add('hidden');
+      input.value = '';
+    } else {
+      input.classList.remove('hidden');
+    }
+  }
+
+  // Submit Add Faculty
+  async function submitAddFaculty(e) {
+    e.preventDefault();
+    const btn = document.getElementById('add-faculty-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<span class="material-symbols-outlined text-[16px] animate-spin">refresh</span> Creating...`;
+
+    const form = e.target;
+    const formData = new FormData(form);
+    const autoGen = document.getElementById('auto-gen-pw').checked;
+    formData.set('auto_generate_password', autoGen ? 'true' : 'false');
+
+    try {
+      const res = await fetch("{{ url_for('admin_add_faculty') }}", {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        closeModal('add-faculty-modal');
+        // Show generated password modal
+        document.getElementById('display-username').textContent = data.faculty.username;
+        document.getElementById('display-password').textContent = data.generated_password;
+        document.getElementById('password-display-modal').classList.remove('hidden');
+        document.getElementById('password-display-modal').classList.add('flex');
+      } else {
+        showToast(data.error || "Failed to add faculty.", "error");
+      }
+    } catch (err) {
+      showToast("Error connecting to server: " + err.message, "error");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<span>Create & Link</span>`;
+    }
+  }
+
+  function copyGeneratedPassword() {
+    const pw = document.getElementById('display-password').textContent;
+    navigator.clipboard.writeText(pw).then(() => {
+      showToast("Password copied to clipboard!", "success");
+    });
+  }
+
+  function closePasswordModalAndReload() {
+    closeModal('password-display-modal');
+    window.location.reload();
+  }
+
+  // Edit Faculty
+  function openEditFacultyModal(faculty) {
+    document.getElementById('edit-faculty-id').value = faculty.faculty_id;
+    document.getElementById('edit-faculty-name').value = faculty.name;
+    document.getElementById('edit-faculty-subject').value = faculty.subject;
+    document.getElementById('edit-faculty-username').value = faculty.username;
+    document.getElementById('edit-faculty-sheet').value = faculty.sheet_id;
+    document.getElementById('edit-faculty-ws').value = faculty.worksheet_name || 'Sheet1';
+
+    document.getElementById('edit-faculty-modal').classList.remove('hidden');
+    document.getElementById('edit-faculty-modal').classList.add('flex');
+  }
+
+  async function submitEditFaculty(e) {
+    e.preventDefault();
+    const btn = document.getElementById('edit-faculty-btn');
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+
+    const formData = new FormData(e.target);
+    try {
+      const res = await fetch("{{ url_for('admin_edit_faculty') }}", {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Faculty updated successfully!", "success");
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        showToast(data.error || "Update failed.", "error");
+      }
+    } catch (err) {
+      showToast("Error: " + err.message, "error");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Save Changes";
+    }
+  }
+
+  // Reset Password
+  function openResetPasswordModal(id, name) {
+    document.getElementById('reset-faculty-id').value = id;
+    document.getElementById('reset-pw-faculty-label').textContent = `Resetting password for: ${name}`;
+    document.getElementById('reset-pw-modal').classList.remove('hidden');
+    document.getElementById('reset-pw-modal').classList.add('flex');
+  }
+
+  async function submitResetPassword(e) {
+    e.preventDefault();
+    const btn = document.getElementById('reset-pw-submit-btn');
+    btn.disabled = true;
+    btn.textContent = "Resetting...";
+
+    const formData = new FormData(e.target);
+    const autoGen = document.getElementById('reset-auto-gen').checked;
+    formData.set('auto_generate', autoGen ? 'true' : 'false');
+
+    try {
+      const res = await fetch("{{ url_for('admin_reset_password') }}", {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        closeModal('reset-pw-modal');
+        document.getElementById('display-username').textContent = "Password updated";
+        document.getElementById('display-password').textContent = data.new_password;
+        document.getElementById('password-display-modal').classList.remove('hidden');
+        document.getElementById('password-display-modal').classList.add('flex');
+      } else {
+        showToast(data.error || "Failed to reset password.", "error");
+      }
+    } catch (err) {
+      showToast("Error: " + err.message, "error");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Reset Password";
+    }
+  }
+
+  // Toggle Active Status
+  async function toggleFacultyStatus(id, newStatus) {
+    const formData = new FormData();
+    formData.append('faculty_id', id);
+    formData.append('active', newStatus ? 'true' : 'false');
+
+    try {
+      const res = await fetch("{{ url_for('admin_toggle_active') }}", {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message, "success");
+        setTimeout(() => window.location.reload(), 800);
+      } else {
+        showToast(data.error || "Failed to change status.", "error");
+      }
+    } catch (err) {
+      showToast("Error: " + err.message, "error");
+    }
+  }
+
+  // Confirm Delete Faculty
+  async function confirmDeleteFaculty(id, name) {
+    if (!confirm(`Are you sure you want to permanently delete faculty member "${name}"? This action cannot be undone.`)) {
+      return;
+    }
+    const formData = new FormData();
+    formData.append('faculty_id', id);
+
+    try {
+      const res = await fetch("{{ url_for('admin_delete_faculty') }}", {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Faculty deleted.", "info");
+        setTimeout(() => window.location.reload(), 800);
+      } else {
+        showToast(data.error || "Delete failed.", "error");
+      }
+    } catch (err) {
+      showToast("Error: " + err.message, "error");
+    }
+  }
+
+  // Test Sheet Connection
+  async function testSheetConnection(sheetId, worksheetName, button) {
+    if (!sheetId) {
+      showToast("No sheet ID linked for this faculty member.", "warning");
+      return;
+    }
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = `<span class="material-symbols-outlined text-[16px] animate-spin">refresh</span> Testing...`;
+
+    const formData = new FormData();
+    formData.append('sheet_id', sheetId);
+    formData.append('worksheet_name', worksheetName);
+
+    try {
+      const res = await fetch("{{ url_for('admin_test_connection') }}", {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message, "success", 5000);
+      } else {
+        showToast(data.message, "error", 7000);
+      }
+    } catch (err) {
+      showToast("Connection test failed: " + err.message, "error");
+    } finally {
+      button.disabled = false;
+      button.innerHTML = originalText;
+    }
+  }
+
+  // Search faculty cards
+  const searchInput = document.getElementById('search-faculty-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.faculty-card');
+      cards.forEach(card => {
+        const text = card.getAttribute('data-search').toLowerCase();
+        if (text.includes(query)) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    });
+  }
+</script>
+{% endblock %}

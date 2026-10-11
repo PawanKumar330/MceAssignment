@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Master Admin — Subject Submissions Overview{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header Section -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-outline-variant/30">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-2xl font-headline font-bold text-on-surface">Subject Submissions Overview</h1>
+        <span class="px-2.5 py-0.5 rounded-full bg-secondary/10 text-secondary dark:bg-blue-900/40 dark:text-blue-300 text-xs font-bold font-headline">
+          Live Monitor
+        </span>
+      </div>
+      <p class="text-xs sm:text-sm text-on-surface-variant mt-0.5">
+        Per-subject metrics, student submission rates, and synchronization health.
+      </p>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('admin_dashboard') }}" class="h-10 px-4 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-sm">
+        <span class="material-symbols-outlined text-[18px]">manage_accounts</span>
+        <span>Faculty &amp; Sheets Config</span>
+      </a>
+      <button onclick="window.location.reload()" class="h-10 px-3.5 rounded-xl bg-primary text-white text-xs font-semibold flex items-center gap-1.5 shadow-md hover:bg-primary-container transition-all">
+        <span class="material-symbols-outlined text-[18px]">refresh</span>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Subject Progress Cards Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% if subjects_data %}
+      {% for s in subjects_data %}
+        <div class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
+          <div class="space-y-3">
+            <!-- Header & Badge -->
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <span class="px-2 py-0.5 rounded bg-primary/10 text-primary dark:bg-blue-900/40 dark:text-blue-300 text-[11px] font-bold uppercase tracking-wider font-mono">
+                  {{ s.subject.split(':')[0] if ':' in s.subject else 'COURSE' }}
+                </span>
+                <h3 class="font-headline font-bold text-base text-on-surface truncate mt-1" title="{{ s.subject }}">
+                  {{ s.subject }}
+                </h3>
+                <p class="text-xs text-on-surface-variant">Faculty: <span class="font-medium text-on-surface">{{ s.faculty_name }}</span></p>
+              </div>
+
+              {% if s.status == 'connected' %}
+                <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300 text-[10px] font-bold flex items-center gap-1 shrink-0">
+                  <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Synced
+                </span>
+              {% elif s.status == 'error' %}
+                <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 text-[10px] font-bold flex items-center gap-1 shrink-0" title="{{ s.error_msg }}">
+                  <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Error
+                </span>
+              {% else %}
+                <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 text-[10px] font-bold shrink-0">
+                  No Sheet
+                </span>
+              {% endif %}
+            </div>
+
+            <!-- Stats numbers strip -->
+            <div class="grid grid-cols-3 gap-2 bg-surface-container-low dark:bg-slate-800/80 p-2.5 rounded-xl text-center">
+              <div>
+                <div class="text-[10px] font-semibold uppercase text-on-surface-variant">Enrolled</div>
+                <div class="text-lg font-headline font-bold text-on-surface">{{ s.total_students }}</div>
+              </div>
+              <div>
+                <div class="text-[10px] font-semibold uppercase text-green-600 dark:text-green-400">Submitted</div>
+                <div class="text-lg font-headline font-bold text-green-700 dark:text-green-400">{{ s.submitted }}</div>
+              </div>
+              <div>
+                <div class="text-[10px] font-semibold uppercase text-amber-600 dark:text-amber-400">Pending</div>
+                <div class="text-lg font-headline font-bold text-amber-700 dark:text-amber-400">{{ s.pending }}</div>
+              </div>
+            </div>
+
+            <!-- Progress Bar Section -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-on-surface-variant font-medium">
+                  Assignment: <span class="font-semibold text-on-surface">{{ s.primary_assignment or 'None' }}</span>
+                </span>
+                <span class="font-bold font-mono text-primary dark:text-blue-300">{{ s.percentage }}%</span>
+              </div>
+              <div class="w-full bg-surface-container-low dark:bg-slate-800 rounded-full h-2.5 overflow-hidden flex">
+                <div class="bg-primary dark:bg-blue-500 h-full transition-all duration-500" style="width: {{ s.percentage }}%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer with link -->
+          <div class="pt-3 border-t border-outline-variant/20 flex items-center justify-between text-xs text-on-surface-variant">
+            <span class="font-mono text-[11px] truncate">{{ s.worksheet_name or 'Sheet1' }}</span>
+            {% if s.sheet_id %}
+              <a href="https://docs.google.com/spreadsheets/d/{{ s.sheet_id }}" target="_blank" rel="noopener" class="text-secondary hover:underline flex items-center gap-1 font-semibold text-xs">
+                <span>View Sheet</span>
+                <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="col-span-full text-center py-12 bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl p-6">
+        <span class="material-symbols-outlined text-[48px] text-outline mb-2">insert_chart</span>
+        <h3 class="text-lg font-headline font-bold text-on-surface">No Subject Analytics Found</h3>
+        <p class="text-xs sm:text-sm text-on-surface-variant max-w-sm mx-auto mt-1 mb-4">
+          Add faculty and link Google Sheets in the Admin Dashboard to start monitoring student submissions.
+        </p>
+        <a href="{{ url_for('admin_dashboard') }}" class="px-4 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-md inline-flex items-center gap-1">
+          Go to Configuration
+        </a>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

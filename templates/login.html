@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In — SyncAcademia Assignment Tracker{% endblock %}
+
+{% block content %}
+<div class="min-h-[75vh] flex items-center justify-center py-8">
+  <div class="w-full max-w-md bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl p-6 sm:p-8 shadow-xl">
+    
+    <!-- Branding Header -->
+    <div class="text-center mb-6">
+      <div class="inline-flex w-14 h-14 rounded-2xl bg-primary-container text-white items-center justify-center shadow-lg mb-3">
+        <span class="material-symbols-outlined text-[32px]">school</span>
+      </div>
+      <h1 class="text-2xl font-headline font-bold text-on-surface">Assignment Tracker</h1>
+      <p class="text-sm text-on-surface-variant mt-1">Sign in with your Admin or Faculty credentials</p>
+    </div>
+
+    <!-- Error Alert -->
+    {% if error %}
+      <div class="mb-5 p-3.5 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-sm flex items-start gap-2.5">
+        <span class="material-symbols-outlined text-[20px] shrink-0 text-red-600">error</span>
+        <span>{{ error }}</span>
+      </div>
+    {% endif %}
+
+    <!-- Form -->
+    <form method="POST" action="{{ url_for('login') }}" class="space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+      <div>
+        <label for="username" class="block text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-1.5">
+          Username
+        </label>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-3 text-outline text-[20px]">person</span>
+          <input 
+            type="text" 
+            id="username" 
+            name="username" 
+            required 
+            autocomplete="username"
+            placeholder="e.g. admin or prof_vance"
+            class="w-full h-11 pl-10 pr-3.5 rounded-xl bg-surface-container-low dark:bg-slate-800 text-on-surface border border-outline-variant/40 focus:border-secondary focus:ring-2 focus:ring-secondary/20 focus:outline-none text-sm transition-all"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-1.5">
+          Password
+        </label>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-3 text-outline text-[20px]">lock</span>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            required 
+            autocomplete="current-password"
+            placeholder="Enter your password"
+            class="w-full h-11 pl-10 pr-10 rounded-xl bg-surface-container-low dark:bg-slate-800 text-on-surface border border-outline-variant/40 focus:border-secondary focus:ring-2 focus:ring-secondary/20 focus:outline-none text-sm transition-all"
+          />
+          <button 
+            type="button" 
+            onclick="togglePasswordVisibility()" 
+            class="absolute right-3 top-2.5 text-on-surface-variant hover:text-on-surface p-1"
+          >
+            <span class="material-symbols-outlined text-[18px]" id="eye-icon">visibility</span>
+          </button>
+        </div>
+      </div>
+
+      <button 
+        type="submit" 
+        class="w-full h-11 mt-2 rounded-xl bg-primary hover:bg-primary-container text-white font-headline font-semibold text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.99]"
+      >
+        <span>Sign In</span>
+        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+      </button>
+    </form>
+
+    <!-- Footer Note -->
+    <div class="mt-6 pt-5 border-t border-outline-variant/30 text-center">
+      <div class="flex items-center justify-center gap-1.5 text-xs text-on-surface-variant">
+        <span class="material-symbols-outlined text-[16px] text-tertiary-container">verified_user</span>
+        <span>Google Cloud Service Account Connected</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function togglePasswordVisibility() {
+    const input = document.getElementById('password');
+    const icon = document.getElementById('eye-icon');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.textContent = 'visibility_off';
+    } else {
+      input.type = 'password';
+      icon.textContent = 'visibility';
+    }
+  }
+</script>
+{% endblock %}

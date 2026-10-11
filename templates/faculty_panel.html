@@ -1,0 +1,642 @@
+{% extends "base.html" %}
+
+{% block title %}Faculty Portal — {{ subject }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Sticky toolbar and custom table styling */
+  .faculty-sticky-bar {
+    position: sticky;
+    top: 4rem;
+    z-index: 30;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <!-- Error Alert if sheet access issue -->
+  {% if error_message %}
+    <div class="p-4 rounded-2xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-200 flex items-start gap-3 shadow-sm">
+      <span class="material-symbols-outlined text-[24px] text-red-600 shrink-0">warning</span>
+      <div>
+        <h3 class="font-headline font-bold text-sm">Google Sheets Connection Notice</h3>
+        <p class="text-xs mt-0.5">{{ error_message }}</p>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Subject & Sheet Context Banner -->
+  <section class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="px-2 py-0.5 rounded bg-primary/10 text-primary dark:bg-blue-900/40 dark:text-blue-300 font-mono font-bold text-xs uppercase">
+            {{ subject.split(':')[0] if ':' in subject else 'COURSE' }}
+          </span>
+          <h1 class="text-xl sm:text-2xl font-headline font-bold text-on-surface truncate">{{ subject }}</h1>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-on-surface-variant mt-1">
+          <span class="material-symbols-outlined text-[16px] text-secondary">person</span>
+          <span class="font-medium text-on-surface">{{ faculty_name }}</span>
+          <span>•</span>
+          <span class="text-green-700 dark:text-green-400 font-medium flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+            Sheet Connected
+          </span>
+        </div>
+      </div>
+
+      <!-- Quick Sheet Link -->
+      <div class="flex items-center gap-2">
+        {% if sheet_id %}
+          <a href="https://docs.google.com/spreadsheets/d/{{ sheet_id }}" target="_blank" rel="noopener" class="h-9 px-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-secondary dark:text-blue-300 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm">
+            <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+            <span class="hidden sm:inline">Open Google Sheet</span>
+          </a>
+        {% endif %}
+        <button onclick="window.location.reload()" class="h-9 px-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm" title="Refresh sheet data">
+          <span class="material-symbols-outlined text-[16px]">refresh</span>
+          <span class="hidden sm:inline">Refresh</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Assignment Selector & Stat Summary -->
+    <div class="pt-3 border-t border-outline-variant/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-2 flex-1 min-w-0">
+        <label for="assignment-selector" class="text-xs font-bold uppercase text-on-surface-variant tracking-wider shrink-0">
+          Assignment:
+        </label>
+        <select id="assignment-selector" onchange="onAssignmentChanged()" class="h-9 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 text-xs font-semibold text-on-surface border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-secondary/20 max-w-xs">
+          {% for asg in assignments %}
+            <option value="{{ asg.name }}">{{ asg.name }}</option>
+          {% endfor %}
+        </select>
+        <button onclick="openNewAssignmentModal()" class="h-9 px-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-primary dark:text-blue-300 text-xs font-bold flex items-center gap-1 transition-colors" title="Add another assignment column">
+          <span class="material-symbols-outlined text-[16px]">add</span>
+          <span>New</span>
+        </button>
+      </div>
+
+      <!-- Export Button -->
+      <button onclick="exportCurrentViewCSV()" class="h-9 px-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold flex items-center gap-1.5 transition-colors self-start sm:self-auto shadow-sm">
+        <span class="material-symbols-outlined text-[16px]">download</span>
+        <span>Export CSV</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- Metric Strip & Progress Bar -->
+  <section class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+    <div class="grid grid-cols-3 gap-3">
+      <div class="bg-surface-container-low dark:bg-slate-800/80 p-3 rounded-xl">
+        <span class="text-xs text-on-surface-variant font-medium">Enrolled</span>
+        <div class="text-xl sm:text-2xl font-headline font-bold text-on-surface mt-0.5" id="stat-total">0</div>
+      </div>
+      <div class="bg-surface-container-low dark:bg-slate-800/80 p-3 rounded-xl">
+        <span class="text-xs text-green-700 dark:text-green-400 font-medium flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-green-500"></span> Submitted
+        </span>
+        <div class="flex items-baseline gap-1 mt-0.5">
+          <span class="text-xl sm:text-2xl font-headline font-bold text-green-700 dark:text-green-400" id="stat-submitted">0</span>
+          <span class="text-xs font-semibold text-green-700 dark:text-green-400" id="stat-submitted-pct">(0%)</span>
+        </div>
+      </div>
+      <div class="bg-surface-container-low dark:bg-slate-800/80 p-3 rounded-xl">
+        <span class="text-xs text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-amber-500"></span> Pending
+        </span>
+        <div class="flex items-baseline gap-1 mt-0.5">
+          <span class="text-xl sm:text-2xl font-headline font-bold text-amber-700 dark:text-amber-400" id="stat-pending">0</span>
+          <span class="text-xs font-semibold text-amber-700 dark:text-amber-400" id="stat-pending-pct">(0%)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Linear Progress Bar -->
+    <div class="w-full bg-surface-container-low dark:bg-slate-800 rounded-full h-2.5 overflow-hidden flex">
+      <div id="stat-progressbar" class="bg-green-600 h-full transition-all duration-300" style="width: 0%;"></div>
+    </div>
+  </section>
+
+  <!-- Sticky Batch Actions & Controls Toolbar -->
+  <section class="bg-surface-container-lowest/95 dark:bg-slate-900/95 backdrop-blur-md border border-outline-variant/30 rounded-2xl p-3 sm:p-4 shadow-sm faculty-sticky-bar flex flex-col md:flex-row md:items-center justify-between gap-3">
+    
+    <!-- Search & Filter Controls -->
+    <div class="flex items-center gap-2 flex-1">
+      <div class="relative flex-1 max-w-sm">
+        <span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">search</span>
+        <input 
+          type="search" 
+          id="student-search-input" 
+          oninput="filterStudentsTable()" 
+          placeholder="Search by name or roll number..." 
+          class="w-full h-9 pl-9 pr-3 rounded-xl bg-surface-container-low dark:bg-slate-800 text-xs sm:text-sm text-on-surface border border-outline-variant/30 focus:outline-none"
+        />
+      </div>
+
+      <!-- Filter Pills -->
+      <div class="flex items-center gap-1 text-xs">
+        <button onclick="setStatusFilter('all')" id="filter-all" class="px-2.5 py-1.5 rounded-lg bg-primary text-white font-medium shadow-sm">All</button>
+        <button onclick="setStatusFilter('Submitted')" id="filter-submitted" class="px-2.5 py-1.5 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container font-medium">Submitted</button>
+        <button onclick="setStatusFilter('Not Submitted')" id="filter-pending" class="px-2.5 py-1.5 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container font-medium">Pending</button>
+      </div>
+    </div>
+
+    <!-- Bulk Actions & Save Button -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <button onclick="bulkMarkStatus('Not Submitted')" class="h-9 px-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold flex items-center gap-1 shadow-sm transition-colors" title="Mark all filtered students as Not Submitted">
+        <span class="material-symbols-outlined text-[16px] text-amber-600">close</span>
+        <span>Mark All Pending</span>
+      </button>
+
+      <button onclick="bulkMarkStatus('Submitted')" class="h-9 px-3 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold flex items-center gap-1 shadow-sm transition-colors" title="Mark selected students as Submitted">
+        <span class="material-symbols-outlined text-[16px] text-green-600">done_all</span>
+        <span>Mark Selected Submitted</span>
+      </button>
+
+      <!-- Save Button -->
+      <button id="save-batch-btn" onclick="saveBatchUpdatesToSheet()" class="h-9 px-4 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-[16px]">cloud_upload</span>
+        <span id="save-btn-text">Save Changes</span>
+        <span id="unsaved-badge" class="hidden px-1.5 py-0.2 rounded-full bg-white text-green-800 text-[10px] font-mono">0</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- Students Roster: Responsive Table (Desktop) & Cards (Mobile) -->
+  <section class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs sm:text-sm">
+        <thead>
+          <tr class="bg-surface-container-low/70 dark:bg-slate-800/80 border-b border-outline-variant/30 text-on-surface-variant uppercase text-[11px] font-bold">
+            <th class="p-3 w-10 text-center">
+              <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this)" class="rounded text-primary focus:ring-0 cursor-pointer"/>
+            </th>
+            <th class="p-3">Roll / Reg No</th>
+            <th class="p-3">Student Name</th>
+            <th class="p-3">Status</th>
+            <th class="p-3">Date Of Submission</th>
+            <th class="p-3 text-right">Row</th>
+          </tr>
+        </thead>
+        <tbody id="students-tbody" class="divide-y divide-outline-variant/20">
+          <!-- Populated by JavaScript from initial sheet data -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty State -->
+    <div id="no-students-msg" class="hidden text-center py-12 p-4">
+      <span class="material-symbols-outlined text-[40px] text-outline mb-1">sentiment_dissatisfied</span>
+      <h3 class="text-base font-headline font-bold text-on-surface">No Students Found</h3>
+      <p class="text-xs text-on-surface-variant">Check your search query or verify the linked Google Sheet contains student rows below the header.</p>
+    </div>
+  </section>
+
+</div>
+
+
+<!-- ========================================== -->
+<!-- MODAL: ADD NEW ASSIGNMENT                  -->
+<!-- ========================================== -->
+<div id="new-assignment-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
+  <div class="bg-surface-container-lowest dark:bg-slate-900 border border-outline-variant/30 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-headline font-bold text-on-surface">Create New Assignment</h2>
+      <button onclick="closeModal('new-assignment-modal')" class="text-on-surface-variant hover:text-on-surface p-1">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <p class="text-xs text-on-surface-variant">
+      This will add a new pair of columns (e.g. <code>Assignment 2 Status</code> and <code>Assignment 2 Date</code>) to your Google Sheet without touching student names or roll numbers.
+    </p>
+
+    <form id="new-assignment-form" onsubmit="submitNewAssignment(event)" class="space-y-3.5">
+      <div>
+        <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Assignment Name</label>
+        <input 
+          type="text" 
+          id="new-asg-name-input" 
+          required 
+          placeholder="e.g. Assignment 2" 
+          class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none"
+        />
+      </div>
+
+      <div class="pt-2 flex items-center justify-end gap-2">
+        <button type="button" onclick="closeModal('new-assignment-modal')" class="px-4 py-2 rounded-xl bg-surface-container-low text-on-surface text-xs font-semibold">Cancel</button>
+        <button type="submit" id="create-asg-btn" class="px-5 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-md">
+          Create Assignment
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Initial Student Dataset passed from Flask backend
+  const RAW_STUDENTS = {{ students|tojson }};
+  const RAW_ASSIGNMENTS = {{ assignments|tojson }};
+
+  // Local working copy of student states to track changes
+  // Format: row_index -> { roll_no, name, row_index, assignments: { asg_name: { status, date } } }
+  let studentData = JSON.parse(JSON.stringify(RAW_STUDENTS));
+  let currentAssignment = RAW_ASSIGNMENTS.length > 0 ? RAW_ASSIGNMENTS[0].name : "Assignment 1";
+  let activeStatusFilter = "all";
+  let dirtyRows = new Set(); // set of row_indices that have unsaved changes
+
+  // Date helper: format to DD-MM-YYYY
+  function getTodayDDMMYYYY() {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    return `${dd}-${mm}-${yyyy}`;
+  }
+
+  // Convert DD-MM-YYYY to YYYY-MM-DD for standard HTML5 date input
+  function toISODate(dmyStr) {
+    if (!dmyStr) return "";
+    const parts = dmyStr.split('-');
+    if (parts.length === 3 && parts[2].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dmyStr;
+  }
+
+  // Convert YYYY-MM-DD back to DD-MM-YYYY
+  function toDMYDate(isoStr) {
+    if (!isoStr) return "";
+    const parts = isoStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return isoStr;
+  }
+
+  // Render Table
+  function renderTable() {
+    const tbody = document.getElementById('students-tbody');
+    tbody.innerHTML = '';
+
+    const query = document.getElementById('student-search-input').value.toLowerCase().trim();
+    let visibleCount = 0;
+    let totalCount = studentData.length;
+    let submittedCount = 0;
+
+    studentData.forEach((st) => {
+      const asgRecord = (st.assignments && st.assignments[currentAssignment]) || { status: 'Not Submitted', date: '' };
+      const status = asgRecord.status || 'Not Submitted';
+      const date = asgRecord.date || '';
+
+      if (status === 'Submitted') submittedCount++;
+
+      // Search & status filter matching
+      const matchesSearch = !query || st.name.toLowerCase().includes(query) || st.roll_no.toLowerCase().includes(query);
+      const matchesFilter = (activeStatusFilter === 'all') || (status === activeStatusFilter);
+
+      if (!matchesSearch || !matchesFilter) {
+        return;
+      }
+      visibleCount++;
+
+      const isSubmitted = status === 'Submitted';
+      const isDirty = dirtyRows.has(st.row_index);
+
+      const tr = document.createElement('tr');
+      tr.className = `student-row transition-colors ${isDirty ? 'bg-amber-50/40 dark:bg-amber-950/20' : 'hover:bg-surface-container-low/50'}`;
+      tr.setAttribute('data-row-index', st.row_index);
+
+      tr.innerHTML = `
+        <td class="p-3 text-center">
+          <input type="checkbox" class="student-select-cb rounded text-primary focus:ring-0 cursor-pointer" data-row="${st.row_index}"/>
+        </td>
+        <td class="p-3 font-mono font-semibold text-on-surface">
+          <div>${escapeHtml(st.roll_no)}</div>
+          ${st.registration_no ? `<div class="text-[10px] text-outline font-normal">${escapeHtml(st.registration_no)}</div>` : ''}
+        </td>
+        <td class="p-3 font-medium text-on-surface">
+          <div class="flex items-center gap-2">
+            <span>${escapeHtml(st.name)}</span>
+            ${isDirty ? '<span class="text-[10px] text-amber-600 font-bold">• unsaved</span>' : ''}
+          </div>
+        </td>
+        <td class="p-3">
+          <select 
+            onchange="onStatusChanged(${st.row_index}, this.value)" 
+            class="h-8 px-2.5 rounded-lg text-xs font-semibold border transition-all focus:outline-none ${
+              isSubmitted 
+                ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-950/80 dark:text-green-300 dark:border-green-800' 
+                : 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+            }"
+          >
+            <option value="Not Submitted" ${!isSubmitted ? 'selected' : ''}>Not Submitted</option>
+            <option value="Submitted" ${isSubmitted ? 'selected' : ''}>Submitted</option>
+          </select>
+        </td>
+        <td class="p-3">
+          <input 
+            type="date" 
+            value="${toISODate(date)}" 
+            onchange="onDateChanged(${st.row_index}, this.value)"
+            class="h-8 px-2.5 rounded-lg text-xs font-mono bg-surface-container-low dark:bg-slate-800 border border-outline-variant/30 text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/30 ${
+              !isSubmitted ? 'opacity-40 cursor-not-allowed' : ''
+            }"
+            ${!isSubmitted ? 'disabled' : ''}
+            id="date-input-${st.row_index}"
+          />
+        </td>
+        <td class="p-3 text-right font-mono text-[11px] text-on-surface-variant">
+          Row ${st.row_index}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Update Statistics
+    updateMetrics(totalCount, submittedCount);
+
+    const emptyMsg = document.getElementById('no-students-msg');
+    if (visibleCount === 0) {
+      emptyMsg.classList.remove('hidden');
+    } else {
+      emptyMsg.classList.add('hidden');
+    }
+  }
+
+  function escapeHtml(text) {
+    if (!text) return "";
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function updateMetrics(total, submitted) {
+    const pending = total - submitted;
+    const pct = total > 0 ? Math.round((submitted / total) * 100) : 0;
+
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-submitted').textContent = submitted;
+    document.getElementById('stat-submitted-pct').textContent = `(${pct}%)`;
+    document.getElementById('stat-pending').textContent = pending;
+    document.getElementById('stat-pending-pct').textContent = `(${100 - pct}%)`;
+    document.getElementById('stat-progressbar').style.width = `${pct}%`;
+
+    // Unsaved badge
+    const unsavedBadge = document.getElementById('unsaved-badge');
+    if (dirtyRows.size > 0) {
+      unsavedBadge.textContent = dirtyRows.size;
+      unsavedBadge.classList.remove('hidden');
+    } else {
+      unsavedBadge.classList.add('hidden');
+    }
+  }
+
+  // Row edit handlers
+  function onStatusChanged(rowIndex, newStatus) {
+    const st = studentData.find(s => s.row_index === rowIndex);
+    if (!st) return;
+
+    if (!st.assignments) st.assignments = {};
+    if (!st.assignments[currentAssignment]) st.assignments[currentAssignment] = { status: 'Not Submitted', date: '' };
+
+    st.assignments[currentAssignment].status = newStatus;
+    if (newStatus === 'Submitted') {
+      // Auto fill today if date is currently blank
+      if (!st.assignments[currentAssignment].date) {
+        st.assignments[currentAssignment].date = getTodayDDMMYYYY();
+      }
+    } else {
+      // Cleared when set to Not Submitted
+      st.assignments[currentAssignment].date = '';
+    }
+
+    dirtyRows.add(rowIndex);
+    renderTable();
+  }
+
+  function onDateChanged(rowIndex, newISODate) {
+    const st = studentData.find(s => s.row_index === rowIndex);
+    if (!st) return;
+
+    if (!st.assignments) st.assignments = {};
+    if (!st.assignments[currentAssignment]) st.assignments[currentAssignment] = { status: 'Not Submitted', date: '' };
+
+    st.assignments[currentAssignment].date = toDMYDate(newISODate);
+    dirtyRows.add(rowIndex);
+    renderTable();
+  }
+
+  // Bulk actions
+  function toggleSelectAll(masterCb) {
+    const checkboxes = document.querySelectorAll('.student-select-cb');
+    checkboxes.forEach(cb => cb.checked = masterCb.checked);
+  }
+
+  function bulkMarkStatus(targetStatus) {
+    const checkboxes = document.querySelectorAll('.student-select-cb:checked');
+    const targetRows = [];
+
+    if (checkboxes.length > 0) {
+      // Apply to checked rows
+      checkboxes.forEach(cb => targetRows.push(parseInt(cb.getAttribute('data-row'))));
+    } else {
+      // If none checked and user clicked Mark All Pending, ask confirmation for all visible
+      if (targetStatus === 'Not Submitted') {
+        if (!confirm("No specific rows selected. Mark ALL students in this subject as Not Submitted?")) return;
+        studentData.forEach(s => targetRows.push(s.row_index));
+      } else {
+        showToast("Please select one or more students using the checkboxes first.", "warning");
+        return;
+      }
+    }
+
+    targetRows.forEach(rowIndex => {
+      const st = studentData.find(s => s.row_index === rowIndex);
+      if (st) {
+        if (!st.assignments) st.assignments = {};
+        if (!st.assignments[currentAssignment]) st.assignments[currentAssignment] = { status: 'Not Submitted', date: '' };
+
+        st.assignments[currentAssignment].status = targetStatus;
+        if (targetStatus === 'Submitted') {
+          if (!st.assignments[currentAssignment].date) {
+            st.assignments[currentAssignment].date = getTodayDDMMYYYY();
+          }
+        } else {
+          st.assignments[currentAssignment].date = '';
+        }
+        dirtyRows.add(rowIndex);
+      }
+    });
+
+    renderTable();
+    showToast(`Updated ${targetRows.length} students to "${targetStatus}". Click "Save Changes" to sync to Google Sheet.`, "info");
+  }
+
+  // Batch Save to Google Sheet
+  async function saveBatchUpdatesToSheet() {
+    if (dirtyRows.size === 0) {
+      showToast("No unsaved changes to sync.", "info");
+      return;
+    }
+
+    const saveBtn = document.getElementById('save-batch-btn');
+    const saveText = document.getElementById('save-btn-text');
+    saveBtn.disabled = true;
+    saveText.textContent = "Syncing Sheet...";
+
+    // Collect updates array
+    const updates = [];
+    dirtyRows.forEach(rowIndex => {
+      const st = studentData.find(s => s.row_index === rowIndex);
+      if (st && st.assignments && st.assignments[currentAssignment]) {
+        updates.push({
+          row_index: st.row_index,
+          status: st.assignments[currentAssignment].status,
+          date: st.assignments[currentAssignment].date
+        });
+      }
+    });
+
+    const formData = new FormData();
+    formData.append('assignment_name', currentAssignment);
+    formData.append('updates', JSON.stringify(updates));
+
+    try {
+      const res = await fetch("{{ url_for('faculty_save_submissions') }}", {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message || "Successfully saved to Google Sheet!", "success");
+        dirtyRows.clear();
+        renderTable();
+      } else {
+        showToast(data.error || "Save failed.", "error", 6000);
+      }
+    } catch (err) {
+      showToast("Failed to save: " + err.message, "error");
+    } finally {
+      saveBtn.disabled = false;
+      saveText.textContent = "Save Changes";
+    }
+  }
+
+  // Assignment Switching
+  function onAssignmentChanged() {
+    if (dirtyRows.size > 0) {
+      if (!confirm("You have unsaved changes in the current assignment. Switch anyway?")) {
+        document.getElementById('assignment-selector').value = currentAssignment;
+        return;
+      }
+      dirtyRows.clear();
+    }
+    currentAssignment = document.getElementById('assignment-selector').value;
+    renderTable();
+  }
+
+  // Add Assignment Modal & Submit
+  function openNewAssignmentModal() {
+    document.getElementById('new-asg-name-input').value = `Assignment ${RAW_ASSIGNMENTS.length + 1}`;
+    document.getElementById('new-assignment-modal').classList.remove('hidden');
+    document.getElementById('new-assignment-modal').classList.add('flex');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
+    document.getElementById(id).classList.remove('flex');
+  }
+
+  async function submitNewAssignment(e) {
+    e.preventDefault();
+    const asgName = document.getElementById('new-asg-name-input').value.trim();
+    if (!asgName) return;
+
+    const btn = document.getElementById('create-asg-btn');
+    btn.disabled = true;
+    btn.textContent = "Creating in Sheet...";
+
+    const formData = new FormData();
+    formData.append('assignment_name', asgName);
+
+    try {
+      const res = await fetch("{{ url_for('faculty_create_assignment') }}", {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Created columns for "${asgName}" in Google Sheet!`, "success");
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        showToast(data.error || "Failed to create assignment.", "error");
+      }
+    } catch (err) {
+      showToast("Error: " + err.message, "error");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Create Assignment";
+    }
+  }
+
+  // Filter Pills
+  function setStatusFilter(filter) {
+    activeStatusFilter = filter;
+    ['filter-all', 'filter-submitted', 'filter-pending'].forEach(id => {
+      document.getElementById(id).className = 'px-2.5 py-1.5 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container font-medium';
+    });
+    if (filter === 'all') {
+      document.getElementById('filter-all').className = 'px-2.5 py-1.5 rounded-lg bg-primary text-white font-medium shadow-sm';
+    } else if (filter === 'Submitted') {
+      document.getElementById('filter-submitted').className = 'px-2.5 py-1.5 rounded-lg bg-primary text-white font-medium shadow-sm';
+    } else if (filter === 'Not Submitted') {
+      document.getElementById('filter-pending').className = 'px-2.5 py-1.5 rounded-lg bg-primary text-white font-medium shadow-sm';
+    }
+    renderTable();
+  }
+
+  function filterStudentsTable() {
+    renderTable();
+  }
+
+  // Export CSV
+  function exportCurrentViewCSV() {
+    const rows = [
+      ["Roll No", "Student Name", `${currentAssignment} Status`, `${currentAssignment} Date`]
+    ];
+
+    studentData.forEach(st => {
+      const asg = (st.assignments && st.assignments[currentAssignment]) || { status: 'Not Submitted', date: '' };
+      rows.push([
+        `"${st.roll_no}"`,
+        `"${st.name}"`,
+        `"${asg.status}"`,
+        `"${asg.date || ''}"`
+      ]);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const cleanSubj = "{{ subject }}".replace(/[^a-zA-Z0-9]/g, "_");
+    link.setAttribute("download", `${cleanSubj}_${currentAssignment.replace(/\s+/g, '_')}_Submissions.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("CSV export generated!", "success");
+  }
+
+  // Initial render on load
+  document.addEventListener('DOMContentLoaded', () => {
+    renderTable();
+  });
+</script>
+{% endblock %}
