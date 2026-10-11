@@ -220,6 +220,7 @@
     </div>
 
     <form id="add-faculty-form" onsubmit="submitAddFaculty(event)" class="space-y-3.5">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div>
         <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Faculty Full Name</label>
         <input type="text" name="name" required placeholder="e.g. Dr. Robert Vance" class="w-full h-10 px-3 rounded-xl bg-surface-container-low dark:bg-slate-800 border border-outline-variant/40 text-xs sm:text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/20"/>
@@ -314,6 +315,7 @@
     </div>
 
     <form id="edit-faculty-form" onsubmit="submitEditFaculty(event)" class="space-y-3.5">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <input type="hidden" name="faculty_id" id="edit-faculty-id"/>
 
       <div>
@@ -367,6 +369,7 @@
     <p class="text-xs text-on-surface-variant" id="reset-pw-faculty-label"></p>
 
     <form id="reset-pw-form" onsubmit="submitResetPassword(event)" class="space-y-3.5">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <input type="hidden" name="faculty_id" id="reset-faculty-id"/>
 
       <div>

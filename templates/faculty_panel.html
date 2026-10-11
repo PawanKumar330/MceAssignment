@@ -216,6 +216,7 @@
     </p>
 
     <form id="new-assignment-form" onsubmit="submitNewAssignment(event)" class="space-y-3.5">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div>
         <label class="block text-xs font-semibold text-on-surface-variant uppercase mb-1">Assignment Name</label>
         <input 

@@ -259,7 +259,11 @@
 
       // If server returned HTML (e.g. redirect to login or error page)
       const text = await res.text();
-      if (res.status === 401 || text.includes('Sign In') || text.includes('/login')) {
+      if (res.status === 401 || res.redirected || text.includes('Sign In') || text.includes('/login')) {
+        showToast('Your session has expired. Redirecting to login...', 'error', 2500);
+        setTimeout(() => {
+          window.location.href = "{{ url_for('login') }}?next=" + encodeURIComponent(window.location.pathname);
+        }, 1200);
         return { ok: false, status: 401, data: { success: false, error: 'Your session has expired. Please log in again.' } };
       }
       if (res.status === 403) {
