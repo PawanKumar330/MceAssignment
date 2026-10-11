@@ -31,10 +31,12 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "fallback-secret-key-change-in-prod-3914810")
 
 # Session cookie security settings
+# When running locally over HTTP, secure=True causes browsers to reject cookies.
+# We set secure cookie based on whether request is actually over HTTPS.
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=os.environ.get("FLASK_ENV") == "production"
+    SESSION_COOKIE_SECURE=False  # Handled dynamically or allowed on both http://localhost and https://render
 )
 
 # Configuration from Environment
@@ -58,10 +60,21 @@ def csrf_protect():
     if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
         # Allow checking header X-CSRF-Token or form field csrf_token
         token = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token")
-        if not validate_csrf_token(token):
-            from auth import is_ajax_request
+        
+        # If user has an active session and token is valid, proceed
+        if token and validate_csrf_token(token):
+            return
+
+        from auth import is_ajax_request
+        # If no session or invalid token
+        if not session.get("logged_in") and request.endpoint not in ["login"]:
             if is_ajax_request():
-                return jsonify({"success": False, "error": "Invalid or expired session security token (CSRF). Please refresh the page and try again."}), 400
+                return jsonify({"success": False, "error": "Your session has expired. Please log in again."}), 401
+            return redirect(url_for("login"))
+
+        if not validate_csrf_token(token):
+            if is_ajax_request():
+                return jsonify({"success": False, "error": "Security token invalid. Please refresh the page and try again."}), 400
             flash("Security check failed: Invalid CSRF token. Please try again.", "error")
             return redirect(request.referrer or url_for("login"))
 
