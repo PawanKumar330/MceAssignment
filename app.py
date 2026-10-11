@@ -588,8 +588,13 @@ def not_found(e):
 
 @app.errorhandler(500)
 def server_error(e):
-    logger.error(f"Internal Server Error: {e}")
-    return render_template("error.html", code=500, title="Server Error", message="An unexpected error occurred. Please try again later."), 500
+    import traceback
+    tb = traceback.format_exc()
+    logger.error(f"Internal Server Error (500): {e}\n{tb}")
+    from auth import is_ajax_request
+    if is_ajax_request():
+        return jsonify({"success": False, "error": f"Internal Server Error (500): {str(e)}"}), 500
+    return render_template("error.html", code=500, title="Server Error", message=f"{str(e)}"), 500
 
 
 if __name__ == "__main__":
