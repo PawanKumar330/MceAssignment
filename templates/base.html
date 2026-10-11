@@ -238,6 +238,38 @@
 
     // CSRF Token for Fetch/AJAX requests
     window.CSRF_TOKEN = "{{ csrf_token() }}";
+
+    // Safe Fetch wrapper that parses JSON or extracts clear error messages from HTML/redirects
+    async function safeFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      if (!options.headers['X-CSRF-Token']) {
+        options.headers['X-CSRF-Token'] = window.CSRF_TOKEN;
+      }
+      if (!options.headers['Accept']) {
+        options.headers['Accept'] = 'application/json';
+      }
+
+      const res = await fetch(url, options);
+      const contentType = res.headers.get('content-type') || '';
+
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        return { ok: res.ok, status: res.status, data };
+      }
+
+      // If server returned HTML (e.g. redirect to login or error page)
+      const text = await res.text();
+      if (res.status === 401 || text.includes('Sign In') || text.includes('/login')) {
+        return { ok: false, status: 401, data: { success: false, error: 'Your session has expired. Please log in again.' } };
+      }
+      if (res.status === 403) {
+        return { ok: false, status: 403, data: { success: false, error: 'Access forbidden. You do not have permission for this action.' } };
+      }
+      if (res.status === 429) {
+        return { ok: false, status: 429, data: { success: false, error: 'Too many requests. Please wait a moment.' } };
+      }
+      return { ok: false, status: res.status, data: { success: false, error: `Server error (${res.status}). Please refresh the page.` } };
+    }
   </script>
 
   {% block scripts %}{% endblock %}

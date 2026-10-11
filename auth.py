@@ -60,13 +60,26 @@ def validate_csrf_token(token: str) -> bool:
         return False
     return secrets.compare_digest(session_token, token)
 
+def is_ajax_request() -> bool:
+    """Helper to detect AJAX / Fetch requests."""
+    return bool(
+        request.is_json or 
+        request.headers.get("X-Requested-With") == "XMLHttpRequest" or 
+        request.headers.get("X-CSRF-Token") or
+        "application/json" in request.headers.get("Accept", "")
+    )
+
 # Role Decorators
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get("logged_in"):
+            if is_ajax_request():
+                return jsonify({"success": False, "error": "Session expired. Please log in again."}), 401
             return redirect(url_for("login", next=request.path))
         if session.get("role") != "admin":
+            if is_ajax_request():
+                return jsonify({"success": False, "error": "Access restricted to Master Admin."}), 403
             abort(403, description="Access restricted to Master Admin.")
         return f(*args, **kwargs)
     return decorated_function
@@ -75,8 +88,12 @@ def faculty_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get("logged_in"):
+            if is_ajax_request():
+                return jsonify({"success": False, "error": "Session expired. Please log in again."}), 401
             return redirect(url_for("login", next=request.path))
         if session.get("role") != "faculty":
+            if is_ajax_request():
+                return jsonify({"success": False, "error": "Access restricted to Faculty members."}), 403
             abort(403, description="Access restricted to Faculty members.")
         return f(*args, **kwargs)
     return decorated_function

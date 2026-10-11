@@ -59,8 +59,9 @@ def csrf_protect():
         # Allow checking header X-CSRF-Token or form field csrf_token
         token = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token")
         if not validate_csrf_token(token):
-            if request.is_json:
-                return jsonify({"success": False, "error": "Invalid or missing CSRF token. Please refresh the page."}), 400
+            from auth import is_ajax_request
+            if is_ajax_request():
+                return jsonify({"success": False, "error": "Invalid or expired session security token (CSRF). Please refresh the page and try again."}), 400
             flash("Security check failed: Invalid CSRF token. Please try again.", "error")
             return redirect(request.referrer or url_for("login"))
 

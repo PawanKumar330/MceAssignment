@@ -507,18 +507,17 @@
     formData.append('updates', JSON.stringify(updates));
 
     try {
-      const res = await fetch("{{ url_for('faculty_save_submissions') }}", {
+      const result = await safeFetch("{{ url_for('faculty_save_submissions') }}", {
         method: 'POST',
-        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
         body: formData
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = result.data;
+      if (data && data.success) {
         showToast(data.message || "Successfully saved to Google Sheet!", "success");
         dirtyRows.clear();
         renderTable();
       } else {
-        showToast(data.error || "Save failed.", "error", 6000);
+        showToast((data && data.error) || "Save failed.", "error", 6000);
       }
     } catch (err) {
       showToast("Failed to save: " + err.message, "error");
@@ -566,17 +565,16 @@
     formData.append('assignment_name', asgName);
 
     try {
-      const res = await fetch("{{ url_for('faculty_create_assignment') }}", {
+      const result = await safeFetch("{{ url_for('faculty_create_assignment') }}", {
         method: 'POST',
-        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
         body: formData
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = result.data;
+      if (data && data.success) {
         showToast(`Created columns for "${asgName}" in Google Sheet!`, "success");
         setTimeout(() => window.location.reload(), 1000);
       } else {
-        showToast(data.error || "Failed to create assignment.", "error");
+        showToast((data && data.error) || "Failed to create assignment.", "error");
       }
     } catch (err) {
       showToast("Error: " + err.message, "error");

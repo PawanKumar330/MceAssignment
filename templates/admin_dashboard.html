@@ -446,21 +446,19 @@
     formData.set('auto_generate_password', autoGen ? 'true' : 'false');
 
     try {
-      const res = await fetch("{{ url_for('admin_add_faculty') }}", {
+      const result = await safeFetch("{{ url_for('admin_add_faculty') }}", {
         method: 'POST',
-        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
         body: formData
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = result.data;
+      if (data && data.success) {
         closeModal('add-faculty-modal');
-        // Show generated password modal
         document.getElementById('display-username').textContent = data.faculty.username;
         document.getElementById('display-password').textContent = data.generated_password;
         document.getElementById('password-display-modal').classList.remove('hidden');
         document.getElementById('password-display-modal').classList.add('flex');
       } else {
-        showToast(data.error || "Failed to add faculty.", "error");
+        showToast((data && data.error) || "Failed to add faculty.", "error");
       }
     } catch (err) {
       showToast("Error connecting to server: " + err.message, "error");
@@ -503,17 +501,16 @@
 
     const formData = new FormData(e.target);
     try {
-      const res = await fetch("{{ url_for('admin_edit_faculty') }}", {
+      const result = await safeFetch("{{ url_for('admin_edit_faculty') }}", {
         method: 'POST',
-        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
         body: formData
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = result.data;
+      if (data && data.success) {
         showToast("Faculty updated successfully!", "success");
         setTimeout(() => window.location.reload(), 1000);
       } else {
-        showToast(data.error || "Update failed.", "error");
+        showToast((data && data.error) || "Update failed.", "error");
       }
     } catch (err) {
       showToast("Error: " + err.message, "error");
@@ -542,20 +539,19 @@
     formData.set('auto_generate', autoGen ? 'true' : 'false');
 
     try {
-      const res = await fetch("{{ url_for('admin_reset_password') }}", {
+      const result = await safeFetch("{{ url_for('admin_reset_password') }}", {
         method: 'POST',
-        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
         body: formData
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = result.data;
+      if (data && data.success) {
         closeModal('reset-pw-modal');
         document.getElementById('display-username').textContent = "Password updated";
         document.getElementById('display-password').textContent = data.new_password;
         document.getElementById('password-display-modal').classList.remove('hidden');
         document.getElementById('password-display-modal').classList.add('flex');
       } else {
-        showToast(data.error || "Failed to reset password.", "error");
+        showToast((data && data.error) || "Failed to reset password.", "error");
       }
     } catch (err) {
       showToast("Error: " + err.message, "error");
@@ -572,17 +568,16 @@
     formData.append('active', newStatus ? 'true' : 'false');
 
     try {
-      const res = await fetch("{{ url_for('admin_toggle_active') }}", {
+      const result = await safeFetch("{{ url_for('admin_toggle_active') }}", {
         method: 'POST',
-        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
         body: formData
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = result.data;
+      if (data && data.success) {
         showToast(data.message, "success");
         setTimeout(() => window.location.reload(), 800);
       } else {
-        showToast(data.error || "Failed to change status.", "error");
+        showToast((data && data.error) || "Failed to change status.", "error");
       }
     } catch (err) {
       showToast("Error: " + err.message, "error");
@@ -598,17 +593,16 @@
     formData.append('faculty_id', id);
 
     try {
-      const res = await fetch("{{ url_for('admin_delete_faculty') }}", {
+      const result = await safeFetch("{{ url_for('admin_delete_faculty') }}", {
         method: 'POST',
-        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
         body: formData
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = result.data;
+      if (data && data.success) {
         showToast("Faculty deleted.", "info");
         setTimeout(() => window.location.reload(), 800);
       } else {
-        showToast(data.error || "Delete failed.", "error");
+        showToast((data && data.error) || "Delete failed.", "error");
       }
     } catch (err) {
       showToast("Error: " + err.message, "error");
@@ -630,16 +624,15 @@
     formData.append('worksheet_name', worksheetName);
 
     try {
-      const res = await fetch("{{ url_for('admin_test_connection') }}", {
+      const result = await safeFetch("{{ url_for('admin_test_connection') }}", {
         method: 'POST',
-        headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
         body: formData
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = result.data;
+      if (data && data.success) {
         showToast(data.message, "success", 5000);
       } else {
-        showToast(data.message, "error", 7000);
+        showToast((data && data.message) || (data && data.error) || "Connection test failed.", "error", 7000);
       }
     } catch (err) {
       showToast("Connection test failed: " + err.message, "error");
