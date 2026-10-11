@@ -116,11 +116,14 @@ def login():
         if username.lower() == ADMIN_USERNAME.lower():
             if ADMIN_PASSWORD_HASH and check_password_hash(ADMIN_PASSWORD_HASH, password):
                 clear_failed_login(ip)
+                # Keep or re-generate CSRF token across login
+                token = generate_csrf_token()
                 session.clear()
                 session["logged_in"] = True
                 session["role"] = "admin"
                 session["username"] = ADMIN_USERNAME
                 session["user_name"] = "Master Admin"
+                session["_csrf_token"] = token
 
                 # Log audit
                 if MASTER_SHEET_ID:
@@ -153,6 +156,7 @@ def login():
             pw_hash = matched_faculty.get("password_hash", "")
             if pw_hash and check_password_hash(pw_hash, password):
                 clear_failed_login(ip)
+                token = generate_csrf_token()
                 session.clear()
                 session["logged_in"] = True
                 session["role"] = "faculty"
@@ -162,6 +166,7 @@ def login():
                 session["subject"] = matched_faculty.get("subject")
                 session["sheet_id"] = matched_faculty.get("sheet_id")
                 session["worksheet_name"] = matched_faculty.get("worksheet_name", "Sheet1")
+                session["_csrf_token"] = token
 
                 # Update last activity in Master Sheet
                 now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
